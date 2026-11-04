@@ -4,8 +4,8 @@ go 1.26.5
 
 require (
 	github.com/operator-framework/api v0.46.0
-	github.com/operator-framework/library-olm v0.0.0-20261103162257-da768674ea4b
-	github.com/operator-framework/operator-controller v1.12.1-0.20261028184436-255a40262ba4
+	github.com/operator-framework/library-olm v0.0.0-20261106143057-2a8dfa6ecbff
+	github.com/operator-framework/operator-controller v1.12.1-0.20261105202928-bbe43971eadd
 	github.com/spf13/cobra v1.10.2
 	k8s.io/api v0.37.1
 	k8s.io/apiextensions-apiserver v0.37.1

@@ -34,7 +34,7 @@ acknowledgments. Migration behavior and prerequisites are documented in the
 
 ## Development
 
-The command sources were copied from `library-olm/migration/examples/cmd/` at
-revision `da768674ea4b8077a8ca82b994a9f97968925e99`. Update the
+The command sources were synced from `library-olm/migration/examples/cmd/` at
+revision `2a8dfa6ecbffc5ef69e94b238ed59456bac99d3d`. Update the
 `library-olm` version in `go.mod` when taking future library changes, then run
 `go mod tidy` and `make test`.
