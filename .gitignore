@@ -25,6 +25,9 @@ profile.cov
 go.work
 go.work.sum
 
+# Locally built CLI binaries
+/bin/
+
 # env file
 .env
 
