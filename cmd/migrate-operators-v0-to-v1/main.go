@@ -1,0 +1,131 @@
+// migrate-operators-v0-to-v1 is a CLI tool for migrating operators managed by
+// OLMv0 (Subscription/CSV) to OLMv1 (ClusterExtension/ClusterObjectSet).
+package main
+
+import (
+	"fmt"
+	"os"
+	"strings"
+
+	"github.com/spf13/cobra"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	operatorsv1 "github.com/operator-framework/api/pkg/operators/v1"
+	operatorsv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
+	ocv1 "github.com/operator-framework/operator-controller/api/v1"
+
+	"github.com/operator-framework/library-olm/migration/pkg/clioutput"
+)
+
+var scheme = runtime.NewScheme()
+
+func init() {
+	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+	utilruntime.Must(ocv1.AddToScheme(scheme))
+	utilruntime.Must(appsv1.AddToScheme(scheme))
+	utilruntime.Must(corev1.AddToScheme(scheme))
+	utilruntime.Must(apiextensionsv1.AddToScheme(scheme))
+	utilruntime.Must(operatorsv1.AddToScheme(scheme))
+	utilruntime.Must(operatorsv1alpha1.AddToScheme(scheme))
+}
+
+var (
+	kubeconfig string
+	outputMode = clioutput.Text
+)
+
+var rootCmd = &cobra.Command{
+	Use:   "migrate-operators-v0-to-v1",
+	Short: "Migrate OLMv0-managed operators to OLMv1",
+	Long: `migrate-operators-v0-to-v1 migrates operators from OLMv0 (Subscription/CSV)
+to OLMv1 (ClusterExtension/ClusterObjectSet).
+
+Run migrate-catalogs-v0-to-v1 first to create ClusterCatalogs from CatalogSources.
+
+Subcommands:
+  check   — report readiness and compatibility (no changes)
+  convert — perform the migration
+  rollback — restore an operator to OLMv0 management
+  cleanup — finish a partial migration (Conflict state)`,
+}
+
+func init() {
+	rootCmd.PersistentFlags().StringVar(&kubeconfig, "kubeconfig", "", "Path to kubeconfig file (default: KUBECONFIG env or ~/.kube/config)")
+	rootCmd.PersistentFlags().StringVar(&outputMode, "output", clioutput.Text, "Output format: "+strings.Join(outputFormats.Names(), " or ")+" (jsonl emits one JSON record per line)")
+	rootCmd.PersistentPreRunE = func(_ *cobra.Command, _ []string) error {
+		return outputFormats.Validate(outputMode)
+	}
+	rootCmd.SilenceErrors = true
+
+	rootCmd.AddCommand(checkCmd)
+	rootCmd.AddCommand(convertCmd)
+	rootCmd.AddCommand(rollbackCmd)
+	rootCmd.AddCommand(cleanupCmd)
+}
+
+// runAfterArgumentValidation lets Cobra show usage for invalid arguments, but
+// suppresses it once command execution (and possible cluster interaction) begins.
+func runAfterArgumentValidation(validate, run func(*cobra.Command, []string) error) func(*cobra.Command, []string) error {
+	return func(cmd *cobra.Command, args []string) error {
+		if err := validate(cmd, args); err != nil {
+			return err
+		}
+		cmd.SilenceUsage = true
+		return run(cmd, args)
+	}
+}
+
+func main() {
+	if err := rootCmd.Execute(); err != nil {
+		selectedCommandOutput().fatalError(err)
+		os.Exit(1)
+	}
+}
+
+func newClient() (client.Client, *rest.Config, error) {
+	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
+	if kubeconfig != "" {
+		loadingRules.ExplicitPath = kubeconfig
+	}
+
+	kubeConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+		loadingRules,
+		&clientcmd.ConfigOverrides{},
+	)
+
+	restConfig, err := kubeConfig.ClientConfig()
+	if err != nil {
+		// A migration Job has no kubeconfig file. Use projected ServiceAccount
+		// credentials only when neither --kubeconfig nor KUBECONFIG was supplied;
+		// an invalid explicit configuration must retain its original error.
+		if shouldUseInClusterConfig(kubeconfig, kubeconfigEnvIsSet()) {
+			restConfig, err = rest.InClusterConfig()
+		}
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to get REST config: %w", err)
+		}
+	}
+
+	c, err := client.New(restConfig, client.Options{Scheme: scheme})
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create client: %w", err)
+	}
+	return c, restConfig, nil
+}
+
+func kubeconfigEnvIsSet() bool {
+	_, set := os.LookupEnv("KUBECONFIG")
+	return set
+}
+
+func shouldUseInClusterConfig(kubeconfig string, kubeconfigEnvSet bool) bool {
+	return kubeconfig == "" && !kubeconfigEnvSet
+}
