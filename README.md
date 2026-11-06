@@ -35,6 +35,8 @@ acknowledgments. Migration behavior and prerequisites are documented in the
 ## Development
 
 The command sources were synced from `library-olm/migration/examples/cmd/` at
-revision `2a8dfa6ecbffc5ef69e94b238ed59456bac99d3d`. Update the
-`library-olm` version in `go.mod` when taking future library changes, then run
-`go mod tidy` and `make test`.
+revision `2a8dfa6ecbffc5ef69e94b238ed59456bac99d3d`. The deterministic
+dry-run preview fix is also proposed in
+[library-olm PR #89](https://github.com/operator-framework/library-olm/pull/89).
+Update the `library-olm` version in `go.mod` when taking future library
+changes, then run `go mod tidy` and `make test`.
