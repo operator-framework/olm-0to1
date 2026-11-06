@@ -35,7 +35,7 @@ acknowledgments. Migration behavior and prerequisites are documented in the
 ## Development
 
 The command sources were synced from `library-olm/migration/examples/cmd/` at
-revision `2a8dfa6ecbffc5ef69e94b238ed59456bac99d3d`. The deterministic
+revision `4c37ce218c2eecf9eb5231e038340ce63012ab99`. The deterministic
 dry-run preview fix is also proposed in
 [library-olm PR #89](https://github.com/operator-framework/library-olm/pull/89).
 Update the `library-olm` version in `go.mod` when taking future library
