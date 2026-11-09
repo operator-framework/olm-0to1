@@ -1,4 +1,4 @@
-.PHONY: build test
+.PHONY: build test e2e-smoke
 
 build:
 	mkdir -p bin
@@ -7,3 +7,7 @@ build:
 
 test:
 	go test ./cmd/...
+
+# Run against a dedicated Kind cluster prepared with library-olm's fixture setup.
+e2e-smoke: build
+	go test -tags=e2e -count=1 -timeout=20m ./test/e2e -run '^TestMigrationCLISmoke$$'
