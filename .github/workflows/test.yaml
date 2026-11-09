@@ -1,4 +1,4 @@
-name: migration CLI tests
+name: test
 
 on:
   workflow_dispatch:
